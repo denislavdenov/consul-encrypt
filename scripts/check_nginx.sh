@@ -19,7 +19,7 @@ EOF
 chmod +x /usr/local/bin/check_wel.sh
 
 # Register nginx in consul
-cat << EOF > /vagrant/conf/${var1}/cclient/.consul.d/web.json
+cat << EOF > /etc/.consul.d/web.json
 {
     "service": {
         "name": "web",
@@ -55,11 +55,11 @@ cat << EOF > /vagrant/conf/${var1}/cclient/.consul.d/web.json
 EOF
 
 
-value=`curl -sL https://127.0.0.1:8501/v1/kv/${var1}/site?raw --cacert /vagrant/tls/consul-agent-ca.pem`
+value=`curl -sL https://127.0.0.1:8501/v1/kv/${var1}/site?raw --cacert /etc/tls/consul-agent-ca.pem`
 echo $value > /var/www/html/index.nginx-debian.html
 
 
 systemctl restart nginx.service
 
 sleep 1
-consul reload -ca-file=/vagrant/tls/consul-agent-ca.pem -client-cert=/vagrant/tls/dc1-cli-consul-0.pem -client-key=/vagrant/tls/dc1-cli-consul-0-key.pem -http-addr="https://localhost:8501"
+consul reload -ca-file=/etc/tls/consul-agent-ca.pem -client-cert=/etc/tls/dc1-cli-consul-0.pem -client-key=/etc/tls/dc1-cli-consul-0-key.pem -http-addr="https://localhost:8501"
