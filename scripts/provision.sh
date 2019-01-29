@@ -3,10 +3,11 @@
 #nameserver 127.0.0.53
 #search consul
 
+set -x
 
-which unzip curl socat jq route dig vim || {
+which unzip curl socat jq route dig vim sshpass || {
 apt-get update -y
-apt-get install unzip socat jq dnsutils net-tools vim curl -y 
+apt-get install unzip socat jq dnsutils net-tools vim curl sshpass -y 
 }
 
 # Install consul\
@@ -60,22 +61,77 @@ IFACE=`route -n | awk '$1 ~ "10.10" {print $8}'`
 CIDR=`ip addr show ${IFACE} | awk '$2 ~ "10.10" {print $2}'`
 IP=${CIDR%%/24}
 mkdir -p /vagrant/logs
+mkdir -p /etc/.consul.d
+mkdir -p /etc/tls
+
+cat << EOF > /etc/.consul.d/tls.json
+
+{
+  "verify_incoming": false,
+  "verify_outgoing": true,
+  "verify_server_hostname": true,
+  "ca_file": "/etc/tls/consul-agent-ca.pem",
+  "cert_file": "/etc/tls/xxx",
+  "key_file": "/etc/tls/yyy",
+  "ports": {
+    "http": -1,
+    "https": 8501
+  }
+}
+
+EOF
+
+if [[ "${var2}" == "consul-server1" ]]; then
+    pushd /etc/tls
+    if ! [ -e "consul-agent-ca.pem" ] && ! [ -e "consul-agent-ca-key.pem" ]; then
+    consul tls ca create
+    fi
+    
+else
+    if ! [ -e "consul-agent-ca.pem" ] && ! [ -e "consul-agent-ca-key.pem" ]; then
+        sshpass -p 'vagrant' scp -o StrictHostKeyChecking=no vagrant@10.10.56.11:"/etc/tls/consul-agent-ca*" /etc/tls/ 
+    fi
+    popd
+fi
+
+pushd /etc/tls
+if ! [ -f "dc1-cli-consul-0.pem" ] && ! [ -f "dc1-cli-consul-0-key.pem" ]; then
+    consul tls cert create -cli
+fi
+popd
+
+
 
 if [[ "${var2}" =~ "consul-server" ]]; then
-    mkdir -p /vagrant/conf/${var2}/cserver/.consul.d/
+    pushd /etc/tls/
+    if ! [ -f "dc1-server-consul-0.pem" ] && ! [ -f "dc1-server-consul-0-key.pem" ]; then
+        consul tls cert create -server
+    fi 
+    popd   
+    sed -i -e 's/xxx/dc1-server-consul-0.pem/g' /etc/.consul.d/tls.json
+    sed -i -e 's/yyy/dc1-server-consul-0-key.pem/g' /etc/.consul.d/tls.json
+    
     killall consul
     SERVER_COUNT=${SERVER_COUNT}
     echo $SERVER_COUNT
-    consul agent -server -ui -config-dir=/vagrant/conf/${var2}/cserver/.consul.d/ -bind ${IP} -client 0.0.0.0 -data-dir=/tmp/consul -log-level=${LOG_LEVEL} -enable-script-checks -bootstrap-expect=$SERVER_COUNT -node=$var2 -retry-join=10.10.56.11 -retry-join=10.10.56.12 > /vagrant/logs/$var2.log &
+    consul agent -server -ui -config-dir=/etc/.consul.d/ -bind ${IP} -client 0.0.0.0 -data-dir=/tmp/consul -log-level=${LOG_LEVEL} -enable-script-checks -bootstrap-expect=$SERVER_COUNT -node=$var2 -retry-join=10.10.56.11 -retry-join=10.10.56.12 > /vagrant/logs/$var2.log &
 
 else
     if [[ "${var2}" =~ "client" ]]; then
-        mkdir -p /vagrant/conf/${var2}/cclient/.consul.d/
+        pushd /etc/tls/
+        if ! [ -f "dc1-client-consul-0.pem" ] && ! [ -f "dc1-client-consul-0-key.pem" ]; then
+            consul tls cert create -client
+        fi  
+        popd  
+        sed -i -e 's/xxx/dc1-client-consul-0.pem/g' /etc/.consul.d/tls.json
+        sed -i -e 's/yyy/dc1-client-consul-0-key.pem/g' /etc/.consul.d/tls.json
         killall consul
-        consul agent -ui -config-dir=/vagrant/conf/${var2}/cclient/.consul.d/ -bind ${IP} -client 0.0.0.0 -data-dir=/tmp/consul -log-level=${LOG_LEVEL} -enable-script-checks -node=$var2 -retry-join=10.10.56.11 -retry-join=10.10.56.12 > /vagrant/logs/$var2.log &
+        consul agent -ui -config-dir=/etc/.consul.d -bind ${IP} -client 0.0.0.0 -data-dir=/tmp/consul -log-level=${LOG_LEVEL} -enable-script-checks -node=$var2 -retry-join=10.10.56.11 -retry-join=10.10.56.12 > /vagrant/logs/$var2.log &
     fi
 fi
 
 
 sleep 5
-consul members -ca-file=/vagrant/tls/consul-agent-ca.pem -client-cert=/vagrant/tls/dc1-cli-consul-0.pem -client-key=/vagrant/tls/dc1-cli-consul-0-key.pem -http-addr="https://localhost:8501"
+consul members -ca-file=/etc/tls/consul-agent-ca.pem -client-cert=/etc/tls/dc1-cli-consul-0.pem -client-key=/etc/tls/dc1-cli-consul-0-key.pem -http-addr="https://localhost:8501"
+
+set +x

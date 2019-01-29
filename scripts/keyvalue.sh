@@ -8,19 +8,19 @@ set -x
 # Adding key/values
 curl \
     --request PUT \
-    --cacert /vagrant/tls/consul-agent-ca.pem \
+    --cacert /etc/tls/consul-agent-ca.pem \
     --data "nameNAME"  \
     https://127.0.0.1:8501/v1/kv/website-name
 
 curl \
     --request PUT \
-    --cacert /vagrant/tls/consul-agent-ca.pem \
+    --cacert /etc/tls/consul-agent-ca.pem \
     --data "@/vagrant/denislav.json"  \
     https://127.0.0.1:8501/v1/kv/denislav
 
 curl \
     --request PUT \
-    --cacert /vagrant/tls/consul-agent-ca.pem \
+    --cacert /etc/tls/consul-agent-ca.pem \
     --data '
     <!DOCTYPE html>
     <html>
@@ -43,7 +43,7 @@ curl \
 
 curl \
     --request PUT \
-    --cacert /vagrant/tls/consul-agent-ca.pem \
+    --cacert /etc/tls/consul-agent-ca.pem \
     --data '
     <!DOCTYPE html>
     <html>
@@ -68,18 +68,18 @@ curl \
 
 # Getting values from keys
 
-value=`curl -sL https://127.0.0.1:8501/v1/kv/website-name | jq '.[].Value' | tr -d '"' | base64 --decode --cacert /vagrant/tls/consul-agent-ca.pem`
+value=`curl -sL https://127.0.0.1:8501/v1/kv/website-name | jq '.[].Value' | tr -d '"' | base64 --decode --cacert /etc/tls/consul-agent-ca.pem`
 echo $value
 
-value=`curl -sL https://127.0.0.1:8501/v1/kv/denislav | jq '.[].Value' | tr -d '"' | base64 --decode --cacert /vagrant/tls/consul-agent-ca.pem`
+value=`curl -sL https://127.0.0.1:8501/v1/kv/denislav | jq '.[].Value' | tr -d '"' | base64 --decode --cacert /etc/tls/consul-agent-ca.pem`
 echo $value
 value=`curl -sL https://127.0.0.1:8501/v1/kv/client-nginx1/site?raw --cacert /vagrant/tls/consul-agent-ca.pem`
 echo $value
-curl -sL https://127.0.0.1:8501/v1/kv/denislav?raw --cacert /vagrant/tls/consul-agent-ca.pem
+curl -sL https://127.0.0.1:8501/v1/kv/denislav?raw --cacert /etc/tls/consul-agent-ca.pem
 # Deleting key/values
 curl \
     --request DELETE \
-    --cacert /vagrant/tls/consul-agent-ca.pem \
+    --cacert /etc/tls/consul-agent-ca.pem \
     https://127.0.0.1:8501/v1/kv/website-name 
 
 set +x

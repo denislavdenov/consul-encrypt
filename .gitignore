@@ -2,3 +2,4 @@
 pkg/
 logs/
 tls/
+.DS_Store
