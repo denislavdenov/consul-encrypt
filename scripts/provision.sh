@@ -112,7 +112,7 @@ fi
 
 pushd /etc/tls
 if ! [ -f "dc1-cli-consul-0.pem" ] && ! [ -f "dc1-cli-consul-0-key.pem" ]; then
-    consul tls cert create -cli
+    consul tls cert create -cli -additional-dnsname="${var2}.node.consul"
 fi
 popd
 
@@ -121,7 +121,7 @@ popd
 if [[ "${var2}" =~ "consul-server" ]]; then
     pushd /etc/tls/
     if ! [ -f "dc1-server-consul-0.pem" ] && ! [ -f "dc1-server-consul-0-key.pem" ]; then
-        consul tls cert create -server
+        consul tls cert create -server -additional-dnsname="${var2}.node.consul"
     fi 
     popd   
     sshpass -p 'vagrant' scp -o StrictHostKeyChecking=no vagrant@10.10.56.11:"/etc/.consul.d/encrypt.json" /etc/.consul.d/
@@ -137,7 +137,7 @@ else
     if [[ "${var2}" =~ "client" ]]; then
         pushd /etc/tls/
         if ! [ -f "dc1-client-consul-0.pem" ] && ! [ -f "dc1-client-consul-0-key.pem" ]; then
-            consul tls cert create -client
+            consul tls cert create -client -additional-dnsname="${var2}.node.consul"
         fi  
         popd  
         sshpass -p 'vagrant' scp -o StrictHostKeyChecking=no vagrant@10.10.56.11:"/etc/.consul.d/encrypt.json" /etc/.consul.d/
