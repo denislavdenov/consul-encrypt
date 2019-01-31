@@ -67,7 +67,8 @@ mkdir -p /etc/tls
 cat << EOF > /etc/.consul.d/tls.json
 
 {
-  "verify_incoming": false,
+  "verify_incoming_rpc": true,
+  "verify_incoming_https": false,
   "verify_outgoing": true,
   "verify_server_hostname": true,
   "ca_file": "/etc/tls/consul-agent-ca.pem",
@@ -76,12 +77,27 @@ cat << EOF > /etc/.consul.d/tls.json
   "ports": {
     "http": -1,
     "https": 8501
-  }
+  },
+  
+  "ui": true,
+  "client_addr": "0.0.0.0",
+  "disable_remote_exec": true
+  
 }
 
 EOF
 
+
+
 if [[ "${var2}" == "consul-server1" ]]; then
+    encr=`consul keygen`
+    cat << EOF > /etc/.consul.d/encrypt.json
+
+    {
+        "encrypt": "${encr}"
+    }
+EOF
+
     pushd /etc/tls
     if ! [ -e "consul-agent-ca.pem" ] && ! [ -e "consul-agent-ca-key.pem" ]; then
     consul tls ca create
@@ -96,7 +112,7 @@ fi
 
 pushd /etc/tls
 if ! [ -f "dc1-cli-consul-0.pem" ] && ! [ -f "dc1-cli-consul-0-key.pem" ]; then
-    consul tls cert create -cli
+    consul tls cert create -cli -additional-dnsname="${var2}.node.consul"
 fi
 popd
 
@@ -105,9 +121,10 @@ popd
 if [[ "${var2}" =~ "consul-server" ]]; then
     pushd /etc/tls/
     if ! [ -f "dc1-server-consul-0.pem" ] && ! [ -f "dc1-server-consul-0-key.pem" ]; then
-        consul tls cert create -server
+        consul tls cert create -server -additional-dnsname="${var2}.node.consul"
     fi 
     popd   
+    sshpass -p 'vagrant' scp -o StrictHostKeyChecking=no vagrant@10.10.56.11:"/etc/.consul.d/encrypt.json" /etc/.consul.d/
     sed -i -e 's/xxx/dc1-server-consul-0.pem/g' /etc/.consul.d/tls.json
     sed -i -e 's/yyy/dc1-server-consul-0-key.pem/g' /etc/.consul.d/tls.json
     
@@ -120,9 +137,10 @@ else
     if [[ "${var2}" =~ "client" ]]; then
         pushd /etc/tls/
         if ! [ -f "dc1-client-consul-0.pem" ] && ! [ -f "dc1-client-consul-0-key.pem" ]; then
-            consul tls cert create -client
+            consul tls cert create -client -additional-dnsname="${var2}.node.consul"
         fi  
         popd  
+        sshpass -p 'vagrant' scp -o StrictHostKeyChecking=no vagrant@10.10.56.11:"/etc/.consul.d/encrypt.json" /etc/.consul.d/
         sed -i -e 's/xxx/dc1-client-consul-0.pem/g' /etc/.consul.d/tls.json
         sed -i -e 's/yyy/dc1-client-consul-0-key.pem/g' /etc/.consul.d/tls.json
         killall consul
